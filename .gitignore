@@ -4,3 +4,11 @@
 
 # Environment
 .venv
+
+# Packaging
+.eggs
+*.egg
+*.egg-info
+
+# Python
+*__pycache__

@@ -1,0 +1,5 @@
+torch
+wandb
+addict
+scipy
+pytest

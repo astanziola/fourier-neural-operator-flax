@@ -38,8 +38,8 @@ setup(
     long_description_content_type="text/markdown",
     author="Antonio Stanziola, UCL BUG",
     author_email="a.stanziola@ucl.ac.uk",
-    packages=find_packages(exclude=["tests", ".github", "docs"]),
-    python_requires=">=3.7",
+    packages=find_packages(exclude=["data", ".github", "scripts"]),
+    python_requires=">=3.8",
     install_requires=read_requirements("requirements.txt"),
     license="MIT License"
 )
