@@ -40,6 +40,10 @@ class MatlabDataset(Dataset):
     self.x = self.x[..., np.newaxis]
     self.y = self.y[..., np.newaxis]
 
+    # Normalize data
+    self.x, _, _ = gaussian_normalize(self.x)
+    self.y, _, _ = gaussian_normalize(self.y)
+
   def __len__(self):
     return self.x.shape[0]
 
