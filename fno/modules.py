@@ -1,10 +1,15 @@
-from turtle import width
 from typing import Callable
 
 import flax.linen as nn
-from flax.linen.initializers import normal
 from jax import numpy as jnp
+from jax import random
 
+
+def normal(stddev=1e-2, dtype = jnp.float32) -> Callable:
+  def init(key, shape, dtype=dtype):
+    keys = random.split(key)
+    return (random.normal(keys[0], shape) + 1j*random.normal(keys[1], shape)) * stddev
+  return init
 
 class SpectralConv2d(nn.Module):
   out_channels: int = 32
@@ -35,41 +40,37 @@ class SpectralConv2d(nn.Module):
     # output signal will have dimensions (N, C, H, W//2+1).
     # Therefore the kernel weigths will have different dimensions
     # for the two axis.
-    kernel = self.param(
-      'kernel',
+    kernel_1 = self.param(
+      'kernel_1',
       normal(scale, jnp.complex64),
-      (in_channels, self.out_channels, 2*self.modes1+1, self.modes2),
+      (in_channels, self.out_channels, self.modes1, self.modes2),
+      jnp.complex64
+    )
+    kernel_2 = self.param(
+      'kernel_2',
+      normal(scale, jnp.complex64),
+      (in_channels, self.out_channels, self.modes1, self.modes2),
       jnp.complex64
     )
 
     # Perform fft of the input
     x_ft = jnp.fft.rfftn(x, axes=(1, 2))
 
-    # Shift the zero frequency to the center of the array, only for the
-    # first axis.
-    x_ft = jnp.fft.fftshift(x_ft, axes=1)
-
-    # Get the center of the spectrum
-    center_idx = x_ft.shape[1]//2
-    center_spect = x_ft[:, -self.modes1+center_idx:self.modes1+center_idx+1, :self.modes2,:]
-
     # Multiply the center of the spectrum by the kernel
-    x_filt = jnp.einsum('bijc,coij->bijo', center_spect, kernel)
-
-    # Pad the kernel with zeros to restore the original size
-    pad_size_1 = (x_ft.shape[1] - 2*self.modes1)//2
-    pad_size_2 = x_ft.shape[2] - self.modes2
-    x_filt = jnp.pad(
-      x_filt,
-      ((0, 0), (pad_size_1, pad_size_1-1), (0, pad_size_2), (0, 0)),
-      mode='constant'
-    )
-
-    # Restore the zero frequency to the beginning of the array
-    x_filt = jnp.fft.ifftshift(x_filt, axes=1)
+    out_ft = jnp.zeros_like(x_ft)
+    s1 = jnp.einsum(
+      'bijc,coij->bijo',
+      x_ft[:, :self.modes1, :self.modes2, :],
+      kernel_1)
+    s2 = jnp.einsum(
+      'bijc,coij->bijo',
+      x_ft[:, -self.modes1:, :self.modes2, :],
+      kernel_2)
+    out_ft = out_ft.at[:, :self.modes1, :self.modes2, :].set(s1)
+    out_ft = out_ft.at[:, -self.modes1:, :self.modes2, :].set(s2)
 
     # Go back to the spatial domain
-    y = jnp.fft.irfftn(x_filt, axes=(1, 2))
+    y = jnp.fft.irfftn(out_ft, axes=(1, 2))
 
     return y
 

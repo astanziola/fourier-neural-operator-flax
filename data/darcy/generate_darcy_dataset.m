@@ -1,13 +1,13 @@
 %% Settings
-filename ='darcy_238.mat';   % Name of the dataset file
-s = 238;                % Number of grid points on [0,1]^2 
+filename ='darcy_211.mat';   % Name of the dataset file
+s = 211;                % Number of grid points on [0,1]^2
 num_samples = 1200;     % Number of samples
 
 % Parameters of covariance C = tau^(2*alpha-2)*(-Laplacian + tau^2 I)^(-alpha)
 alpha = 2;
 tau = 3;
 
-%Forcing function, f(x) = 1 
+%Forcing function, f(x) = 1
 f = ones(s,s);
 
 %% Generation
@@ -25,7 +25,7 @@ parfor samplenum = 1:num_samples
     thresh_a = zeros(s,s);
     thresh_a(norm_a >= 0) = 12;
     thresh_a(norm_a < 0) = 4;
-    
+
     %Solve PDE: - div(a(x)*grad(p(x))) = f(x)
     p = solve_gwf(thresh_a,f);
 

@@ -2,7 +2,7 @@ import jax
 from addict import Dict
 from jax import numpy as jnp
 from jax import random
-from optax import adamw, apply_updates
+from jax.example_libraries import optimizers
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
@@ -12,20 +12,20 @@ from scripts.utils import MatlabDataset, collate_fn, log_wandb_image
 
 # Settings dictionary
 SETTINGS = Dict()
-SETTINGS.data_path = 'data/darcy/darcy_238.mat'
+SETTINGS.data_path = 'data/darcy/darcy_211.mat'
 SETTINGS.n_train = 1000
 SETTINGS.n_test = 200
 SETTINGS.batch_size = 20
 SETTINGS.learning_rate = 0.0001 # TODO: This should be scheduled
 SETTINGS.weight_decay = 1e-4
-SETTINGS.n_epochs = 100
+SETTINGS.n_epochs = 1000
 SETTINGS.nrg = random.PRNGKey(0)
 
 SETTINGS.fno.modes = 12
 SETTINGS.fno.width = 32
 SETTINGS.fno.depth = 4
 SETTINGS.fno.channels_last_proj = 128
-SETTINGS.fno.padding = 18
+SETTINGS.fno.padding = 45
 
 def main():
   # Loading and splitting dataset
@@ -46,7 +46,7 @@ def main():
   test_loader = DataLoader(
     test_dataset,
     batch_size=SETTINGS.batch_size,
-    shuffle=False,
+    shuffle=True,
     collate_fn=collate_fn
   )
 
@@ -57,7 +57,7 @@ def main():
     width=SETTINGS.fno.width,
     depth=SETTINGS.fno.depth,
     channels_last_proj=SETTINGS.fno.channels_last_proj,
-    padding=SETTINGS.fno.padding
+    padding=SETTINGS.fno.padding,
   )
   _x, _ = train_dataset[0]
   _x = jnp.expand_dims(_x, axis=0)
@@ -65,11 +65,10 @@ def main():
   del _x
 
   # Initialize optimizers
-  optimizer = adamw(
-    SETTINGS.learning_rate,
-    weight_decay=SETTINGS.weight_decay
+  init_fun, update_fun, get_params = optimizers.adam(
+    SETTINGS.learning_rate
   )
-  opt_state = optimizer.init(model_params)
+  opt_state = init_fun(model_params)
 
   # Define loss function
   def loss_fn(params, x, y):
@@ -77,11 +76,11 @@ def main():
     return jnp.mean(jnp.square(y - y_pred))
 
   @jax.jit
-  def update(params, opt_state, x, y):
+  def update(opt_state, x, y, step):
+    params = get_params(opt_state)
     lossval, grads = jax.value_and_grad(loss_fn)(params, x, y)
-    updates, opt_state = optimizer.update(grads, opt_state, params)
-    params = apply_updates(params, updates)
-    return params, opt_state, lossval
+    opt_state = update_fun(step, grads, opt_state)
+    return opt_state, lossval
 
   # Initialize wandb
   print("Training...")
@@ -92,12 +91,6 @@ def main():
   for epoch in range(SETTINGS.n_epochs):
     print('Epoch {}'.format(epoch))
 
-    # Log a training image
-    _x, _y = train_dataset[0]
-    _x, _y = jnp.expand_dims(_x, axis=0), jnp.expand_dims(_y, axis=0)
-    _y_pred = model.apply(model_params, _x)
-    log_wandb_image(wandb, "Training image", step, _x[0], _y[0], _y_pred[0])
-
     # Perform one epoch of training
     with tqdm(train_loader, unit="batch") as tepoch:
       for batch in tepoch:
@@ -105,14 +98,19 @@ def main():
 
         # Update parameters
         x, y = batch
-        model_params, opt_state, lossval = update(
-          model_params, opt_state, x, y
-        )
+        opt_state, lossval = update(opt_state, x, y, step)
 
         # Log
         wandb.log({"loss": lossval}, step=step)
         tepoch.set_postfix(loss=lossval)
         step += 1
+
+    # Get new parameters
+    model_params = get_params(opt_state)
+
+    # Log a training image
+    y_pred = model.apply(model_params, x)
+    log_wandb_image(wandb, "Training image", step, x[0], y[0], y_pred[0])
 
     # Validation
     avg_loss = 0

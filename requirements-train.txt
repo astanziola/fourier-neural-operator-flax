@@ -3,6 +3,5 @@ wandb
 addict
 scipy
 pytest
-optax
 tqdm
 wandb
