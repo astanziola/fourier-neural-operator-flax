@@ -4,6 +4,10 @@ This is an **unofficial** [Flax]() ([JAX]()) port of the [Fourier Neural Operato
 
 Please visit [this repository](https://github.com/zongyi-li/fourier_neural_operator) to access the official PyTorch implementation of FNO form the paper's authors, and for the citation policy in case you use FNO in your research.
 
+## ⚠️ Warning
+
+The training for the Darcy Flow appears to be very unstable. I'm not sure if this is expected, if there's a bug in the training code or if there's a bug in the model itself.
+
 ## Requirements
 
 To install `fno`, you just need to have `flax` installed (see the `requirements.txt` file).
