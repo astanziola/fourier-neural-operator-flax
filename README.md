@@ -10,9 +10,4 @@ To install `fno`, you just need to have `flax` installed (see the `requirements.
 
 Then:
 - To generate the data you need `MATLAB` (or, probably, Octave: haven't tested it).
-- To run the training scripts, you'll need:
-  - `scipy` for loading the data in the `.mat` files
-  - `torch` for the `Dataset` and `DataLoader` classes
-  - [`wandb`](https://wandb.ai/site) for logging
-  - `matplotlib` for producing the plots.
-  - [`addict`](https://github.com/mewwts/addict) for cool `Dict` objects.
+- To run the training scripts, you'll need to install the packages in `requirements-train.txt`, for example using `pip install -r requirements-train.txt`.
