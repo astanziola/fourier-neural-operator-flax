@@ -1,5 +1,6 @@
 import jax
 from addict import Dict
+from flax.core.frozen_dict import freeze
 from jax import numpy as jnp
 from jax import random
 from jax.example_libraries import optimizers
@@ -79,6 +80,16 @@ def main():
   def update(opt_state, x, y, step):
     params = get_params(opt_state)
     lossval, grads = jax.value_and_grad(loss_fn)(params, x, y)
+
+    # Add weight decay
+    grads = {'params' : jax.tree_multimap(
+        lambda g, p: g + SETTINGS.weight_decay * p,
+        grads['params'].unfreeze(), params['params'].unfreeze()
+      )
+    }
+    grads = freeze(grads)
+
+
     opt_state = update_fun(step, grads, opt_state)
     return opt_state, lossval
 

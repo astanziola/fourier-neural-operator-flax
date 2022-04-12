@@ -8,7 +8,7 @@ from jax import random
 def normal(stddev=1e-2, dtype = jnp.float32) -> Callable:
   def init(key, shape, dtype=dtype):
     keys = random.split(key)
-    return (random.normal(keys[0], shape) + 1j*random.normal(keys[1], shape)) * stddev
+    return random.normal(keys[0], shape) * stddev
   return init
 
 class SpectralConv2d(nn.Module):
@@ -40,17 +40,29 @@ class SpectralConv2d(nn.Module):
     # output signal will have dimensions (N, C, H, W//2+1).
     # Therefore the kernel weigths will have different dimensions
     # for the two axis.
-    kernel_1 = self.param(
-      'kernel_1',
-      normal(scale, jnp.complex64),
+    kernel_1_r = self.param(
+      'kernel_1_r',
+      normal(scale, jnp.float32),
       (in_channels, self.out_channels, self.modes1, self.modes2),
-      jnp.complex64
+      jnp.float32
     )
-    kernel_2 = self.param(
-      'kernel_2',
-      normal(scale, jnp.complex64),
+    kernel_1_i = self.param(
+      'kernel_1_i',
+      normal(scale, jnp.float32),
       (in_channels, self.out_channels, self.modes1, self.modes2),
-      jnp.complex64
+      jnp.float32
+    )
+    kernel_2_r = self.param(
+      'kernel_2_r',
+      normal(scale, jnp.float32),
+      (in_channels, self.out_channels, self.modes1, self.modes2),
+      jnp.float32
+    )
+    kernel_2_i = self.param(
+      'kernel_2_i',
+      normal(scale, jnp.float32),
+      (in_channels, self.out_channels, self.modes1, self.modes2),
+      jnp.float32
     )
 
     # Perform fft of the input
@@ -61,11 +73,11 @@ class SpectralConv2d(nn.Module):
     s1 = jnp.einsum(
       'bijc,coij->bijo',
       x_ft[:, :self.modes1, :self.modes2, :],
-      kernel_1)
+      kernel_1_r + 1j*kernel_1_i)
     s2 = jnp.einsum(
       'bijc,coij->bijo',
       x_ft[:, -self.modes1:, :self.modes2, :],
-      kernel_2)
+      kernel_2_r + 1j*kernel_2_i)
     out_ft = out_ft.at[:, :self.modes1, :self.modes2, :].set(s1)
     out_ft = out_ft.at[:, -self.modes1:, :self.modes2, :].set(s2)
 
