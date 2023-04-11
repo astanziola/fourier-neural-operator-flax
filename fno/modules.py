@@ -176,7 +176,7 @@ class FNO2D(nn.Module):
   def get_grid(x):
     x1 = jnp.linspace(0, 1, x.shape[1])
     x2 = jnp.linspace(0, 1, x.shape[2])
-    x1, x2 = jnp.meshgrid(x1, x2)
+    jnp.meshgrid(x1, x2, indexing = 'ij')
     grid = jnp.expand_dims(jnp.stack([x1, x2], axis=-1), 0)
     batched_grid = jnp.repeat(grid, x.shape[0], axis=0)
     return batched_grid
